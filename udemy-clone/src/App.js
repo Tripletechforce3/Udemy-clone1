@@ -517,6 +517,9 @@ function CourseDetail() {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollMessage, setEnrollMessage] = useState("");
   const [showPayment, setShowPayment] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -559,6 +562,40 @@ function CourseDetail() {
     fetchCourseData();
   }, [id]);
 
+  // Add beforeunload event listener for enrolled users
+  useEffect(() => {
+    if (isEnrolled && !hasReviewed) {
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = '';
+        setShowRatingModal(true);
+        return '';
+      };
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden' && !hasReviewed) {
+          setShowRatingModal(true);
+        }
+      };
+
+      const handlePopState = () => {
+        if (!hasReviewed) {
+          setShowRatingModal(true);
+        }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isEnrolled, hasReviewed]);
+
   const handleEnroll = async () => {
     const user = storage.getUser();
     const token = storage.getToken();
@@ -579,6 +616,31 @@ function CourseDetail() {
       setEnrollMessage(err.message || 'Failed to enroll in course');
     } finally {
       setEnrolling(false);
+    }
+  };
+
+  const handlePaymentSubmit = async () => {
+    try {
+      // Simulate payment verification
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mark as enrolled after successful payment
+      setIsEnrolled(true);
+      setShowPayment(false);
+      setShowPaymentModal(false);
+      setEnrollMessage('Payment successful! You are now enrolled.');
+    } catch (err) {
+      setEnrollMessage('Payment verification failed. Please try again.');
+    }
+  };
+
+  const handleRatingSubmit = async () => {
+    try {
+      setHasReviewed(true);
+      setShowRatingModal(false);
+      setEnrollMessage('Thank you for your review! Your feedback helps other learners.');
+    } catch (err) {
+      setEnrollMessage('Failed to submit review. Please try again.');
     }
   };
 
@@ -700,10 +762,21 @@ function CourseDetail() {
                 <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">
                   Start Learning
                 </button>
+                {!hasReviewed && (
+                  <button 
+                    onClick={() => setShowRatingModal(true)}
+                    className="w-full bg-yellow-500 text-white py-2 rounded font-semibold hover:bg-yellow-600 transition mb-2"
+                  >
+                    ⭐ Rate & Review Course
+                  </button>
+                )}
               </div>
             ) : showPayment ? (
               <div className="mb-2">
-                <button className="w-full bg-green-600 text-white py-2 rounded font-semibold mb-2">
+                <button 
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full bg-green-600 text-white py-2 rounded font-semibold mb-2 hover:bg-green-700 transition"
+                >
                   Pay Now - ₹{course.price || 499}
                 </button>
                 <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">
@@ -741,6 +814,22 @@ function CourseDetail() {
           </div>
         </div>
       </div>
+      
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        course={course}
+        onSubmit={handlePaymentSubmit}
+      />
+      
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        course={course}
+        onSubmit={handleRatingSubmit}
+      />
     </div>
   );
 }
@@ -1066,7 +1155,6 @@ function AdminDashboard() {
                     const token = storage.getToken();
                     try {
                       console.log('🔍 Testing video fetch...');
-                      console.log('🌐 API URL:', `${API_BASE_URL}/videos/all`);
                       console.log('🔑 Token:', token ? 'Present' : 'Missing');
                       
                       const videos = await api.fetchAllVideos(token);
@@ -1074,7 +1162,6 @@ function AdminDashboard() {
                       setAllVideos(videos);
                     } catch (err) {
                       console.error('❌ Test failed:', err);
-                      console.error('❌ Error details:', err.message);
                     }
                   }}
                   className="mb-2 bg-blue-500 text-white px-4 py-2 rounded text-sm"
@@ -1211,6 +1298,267 @@ function AdminDashboard() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+// Payment Modal Component
+function PaymentModal({ isOpen, onClose, course, onSubmit }) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setError("");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setError("Please upload a payment screenshot");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const token = storage.getToken();
+      if (!token) {
+        setError("Please login to complete payment");
+        return;
+      }
+
+      // Upload payment screenshot to backend
+      const result = await api.verifyPayment(
+        course._id,
+        course.price || 499,
+        selectedFile,
+        token
+      );
+
+      console.log('💰 Payment submitted:', result);
+      onSubmit();
+      onClose();
+    } catch (err) {
+      setError(err.message || "Payment submission failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-gray-900">Complete Payment</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <h4 className="font-semibold text-gray-700 mb-2">Course: {course?.title}</h4>
+          <p className="text-2xl font-bold text-green-600">₹{course?.price || 499}</p>
+        </div>
+
+        {/* Dummy Scanner */}
+        {/* <div className="mb-6">
+          <div className="bg-gray-100 rounded-lg p-4 text-center">
+            <div className="w-48 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center mb-4">
+              <div className="text-center">
+                <div className="w-32 h-32 border-2 border-dashed border-gray-400 rounded-lg flex items-center justify-center mb-2">
+                  <div className="text-gray-500">
+                    <div className="text-4xl mb-2">📱</div>
+                    <div className="text-sm">Scanner</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">Dummy QR Scanner</div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">Scan the QR code to pay ₹{course?.price || 499}</p>
+          </div>
+        </div> */}
+        <img src="https://pvccardprinting.in/wp-content/uploads/2023/12/gpay-qr-code.webp" alt="Course" className="w-full h-auto" />
+        {/* File Upload */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Upload Payment Screenshot
+          </label>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              id="payment-screenshot"
+            />
+            <label htmlFor="payment-screenshot" className="cursor-pointer">
+              <div className="text-gray-500">
+                <div className="text-2xl mb-2">📷</div>
+                <div className="text-sm">
+                  {selectedFile ? selectedFile.name : "Click to upload payment screenshot"}
+                </div>
+              </div>
+            </label>
+          </div>
+          {selectedFile && (
+            <div className="mt-2 text-sm text-green-600">
+              ✓ {selectedFile.name} selected
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded font-semibold hover:bg-gray-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedFile}
+            className="flex-1 bg-green-600 text-white py-2 px-4 rounded font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Processing..." : "Submit Payment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Rating Modal Component
+function RatingModal({ isOpen, onClose, course, onSubmit }) {
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (rating === 0) {
+      setError("Please select a rating");
+      return;
+    }
+    if (!review.trim()) {
+      setError("Please write a review");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // Just show success, do not save to DB
+      setTimeout(() => {
+        onSubmit();
+        onClose();
+      }, 1000);
+    } catch (err) {
+      setError("Failed to submit review. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStarClick = (starValue) => {
+    setRating(starValue);
+    setError("");
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-gray-900">Rate & Review</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <h4 className="font-semibold text-gray-700 mb-2">Course: {course?.title}</h4>
+          <p className="text-sm text-gray-600">How would you rate your experience?</p>
+        </div>
+
+        {/* Star Rating */}
+        <div className="mb-6">
+          <div className="flex justify-center space-x-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => handleStarClick(star)}
+                className={`text-3xl transition-colors ${
+                  star <= rating ? 'text-yellow-400' : 'text-gray-300'
+                } hover:text-yellow-400`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <p className="text-center text-sm text-gray-600 mt-2">
+            {rating > 0 ? `${rating} out of 5 stars` : 'Click to rate'}
+          </p>
+        </div>
+
+        {/* Review Text */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Write your review
+          </label>
+          <textarea
+            value={review}
+            onChange={(e) => setReview(e.target.value)}
+            placeholder="Share your experience with this course..."
+            className="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded font-semibold hover:bg-gray-50 transition"
+          >
+            Skip
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || rating === 0 || !review.trim()}
+            className="flex-1 bg-purple-600 text-white py-2 px-4 rounded font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Submitting..." : "Submit Review"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

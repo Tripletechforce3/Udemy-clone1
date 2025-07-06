@@ -27,12 +27,16 @@ const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/course');
 const enrollRoutes = require('./routes/enroll');
 const videoRoutes = require('./routes/video');
+const paymentRoutes = require('./routes/payment');
+const reviewRoutes = require('./routes/review');
 
 // 🔀 Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enroll', enrollRoutes);
 app.use('/api/videos', videoRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // ✅ Health check
 app.get('/', (req, res) => {

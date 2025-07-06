@@ -179,6 +179,62 @@ export const api = {
     });
     return handleResponse(response);
   },
+
+  // Payment verification
+  verifyPayment: async (courseId, amount, paymentScreenshot, token) => {
+    const formData = new FormData();
+    formData.append('courseId', courseId);
+    formData.append('amount', amount);
+    formData.append('paymentScreenshot', paymentScreenshot);
+
+    const response = await fetch(`${API_BASE_URL}/payment/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  // Check payment status
+  checkPaymentStatus: async (paymentId, token) => {
+    const response = await fetch(`${API_BASE_URL}/payment/status/${paymentId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  // Get payment history
+  getPaymentHistory: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/payment/history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  // Submit review and rating
+  submitReview: async (courseId, rating, review, token) => {
+    const response = await fetch(`${API_BASE_URL}/reviews/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ courseId, rating, review }),
+    });
+    return handleResponse(response);
+  },
+
+  // Get course reviews
+  getCourseReviews: async (courseId) => {
+    const response = await fetch(`${API_BASE_URL}/reviews/course/${courseId}`);
+    return handleResponse(response);
+  },
 };
 
 // Local storage helpers
