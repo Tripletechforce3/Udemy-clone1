@@ -6,7 +6,8 @@ import {
   useNavigate,
   useParams
 } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api, storage } from './api';
 
 function Landing() {
   const navigate = useNavigate();
@@ -93,31 +94,90 @@ function Landing() {
 
 function Register() {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.register(formData.username, formData.email, formData.password);
+      
+      // Store auth data
+      storage.setToken(response.token);
+      storage.setUser(response.user);
+      
+      // Navigate to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6">Register</h2>
-        <form className="flex flex-col gap-4">
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+        
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <input
             type="text"
-            placeholder="Name"
+            name="username"
+            placeholder="Username"
             className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.username}
+            onChange={handleChange}
+            required
+            disabled={loading}
           />
           <input
             type="email"
+            name="email"
             placeholder="Email"
             className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            disabled={loading}
           />
           <input
             type="password"
+            name="password"
             placeholder="Password"
             className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            disabled={loading}
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={loading}
           >
-            Register
+            {loading ? 'Creating account...' : 'Register'}
           </button>
         </form>
         <div className="mt-4 text-center">
@@ -131,191 +191,52 @@ function Register() {
 
 function Dashboard() {
   const navigate = useNavigate();
-  const user = { name: "Guru Hiremath", initials: "GH" };
+  const [user, setUser] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const currentUser = storage.getUser();
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    setUser(currentUser);
+
+    // Fetch courses from backend
+    const fetchCourses = async () => {
+      try {
+        const coursesData = await api.getCourses();
+        setCourses(coursesData);
+      } catch (err) {
+        setError('Failed to load courses');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [navigate]);
   const categories = [
     "Development", "Business", "Finance & Accounting", "IT & Software", "Office Productivity", "Personal Development", "Design", "Marketing", "Health & Fitness", "Music"
   ];
-  const recommendedCourses = [
-    {
-      id: 'python-bootcamp',
-      title: "100 Days of Code: The Complete Python Pro Bootcamp",
-      author: "Dr. Angela Yu",
-      rating: 4.7,
-      reviews: 378490,
-      learners: 1609177,
-      price: 499,
-      oldPrice: 3219,
-      img: "https://img-c.udemycdn.com/course/480x270/567828_67d0.jpg",
-      bestseller: true,
-      whatYouLearn: [
-        "You will master the Python programming language by building 100 unique projects over 100 days.",
-        "You will be able to program in Python professionally.",
-        "Create a portfolio of 100 Python projects to apply for developer jobs.",
-        "Be able to use Python for data science and machine learning.",
-        "Build GUIs and Desktop applications with Python.",
-        "You will learn automation, game, app and web development, data science and machine learning all using Python.",
-        "You will learn Selenium, Beautiful Soup, Request, Flask, Pandas, NumPy, Scikit Learn, Plotly, and Matplotlib.",
-        "Be able to build fully fledged websites and web apps with Python.",
-        "Build games like Blackjack, Pong and Snake using Python."
-      ],
-      curriculum: [
-        {
-          section: "Day 1 - Beginner - Working with Variables in Python to Manage Data",
-          lectures: [
-            { title: "What you're going to get from this course", preview: true, duration: "3:27" },
-            { title: "START HERE", preview: false, duration: "2:53" },
-            { title: "Downloadable Resources and Tips for Taking the Course", preview: true, duration: "4:22" },
-            { title: "Day 1 Goals: what we will make by the end of the day", preview: false, duration: "2:30" },
-            { title: "Download and Setup PyCharm for Learning", preview: false, duration: "4:22" },
-            { title: "Printing to the Console in Python", preview: false, duration: "11:25" },
-            { title: "Printing Practice", preview: false, duration: "1 question" },
-            { title: "String Manipulation and Code Intelligence", preview: false, duration: "9:13" },
-            { title: "Debugging Practice", preview: false, duration: "1 question" },
-            { title: "The Python Input Function", preview: false, duration: "12:35" },
-            { title: "Python Variables", preview: false, duration: "13:02" },
-            { title: "Variables", preview: false, duration: "1 question" },
-            { title: "Variable Naming", preview: false, duration: "4:23" },
-            { title: "Variable Naming Quiz", preview: false, duration: "3 questions" },
-            { title: "Day 1 Project: Band Name Generator", preview: false, duration: "5:32" },
-            { title: "Congratulations! Well done!", preview: false, duration: "0:52" },
-          ]
-        },
-        {
-          section: "Day 2 - Beginner - Understanding Data Types and How to Manipulate Strings",
-          lectures: [
-            { title: "Data Types Overview", preview: false, duration: "7:00" },
-            { title: "String Manipulation", preview: false, duration: "8:00" },
-          ]
-        }
-      ]
-    },
-    {
-      id: 'ml-projects',
-      title: "40 Real World Data Science, Machine Learning Projects",
-      author: "Pianalytix",
-      rating: 4.3,
-      reviews: 322,
-      learners: 75000,
-      price: 509,
-      oldPrice: 2549,
-      img: "https://img-c.udemycdn.com/course/240x135/950390_270f_3.jpg",
-      whatYouLearn: ["Build real-world ML projects.", "Boost your portfolio."],
-      curriculum: [
-        {
-          section: "Section 1 - Introduction to Data Science Projects",
-          lectures: [
-            { title: "Course Overview", preview: true, duration: "2:10" },
-            { title: "Setting Up Your Environment", preview: false, duration: "5:00" },
-            { title: "Project 1: Predicting House Prices", preview: false, duration: "12:30" },
-            { title: "Project 2: Customer Segmentation", preview: false, duration: "10:00" },
-            { title: "Quiz: Data Science Basics", preview: false, duration: "5 questions" },
-          ]
-        },
-        {
-          section: "Section 2 - Machine Learning Projects",
-          lectures: [
-            { title: "Project 3: Image Classification", preview: true, duration: "15:00" },
-            { title: "Project 4: Sentiment Analysis", preview: false, duration: "13:45" },
-            { title: "Project 5: Fraud Detection", preview: false, duration: "14:20" },
-            { title: "Quiz: ML Concepts", preview: false, duration: "7 questions" },
-          ]
-        }
-      ]
-    },
-    {
-      id: 'ds-mastery',
-      title: "Data Science Mastery: Journey into Machine Learning",
-      author: "Tech Career World",
-      rating: 4.3,
-      reviews: 245,
-      learners: 50000,
-      price: 479,
-      oldPrice: 799,
-      img: "https://img-c.udemycdn.com/course/240x135/1565838_e54e_16.jpg",
-      whatYouLearn: ["Master data science.", "Hands-on projects."],
-      curriculum: [
-        {
-          section: "Module 1 - Data Science Foundations",
-          lectures: [
-            { title: "Welcome to the Course", preview: true, duration: "3:00" },
-            { title: "What is Data Science?", preview: false, duration: "6:30" },
-            { title: "Python for Data Science", preview: false, duration: "8:00" },
-            { title: "Quiz: Data Science Terms", preview: false, duration: "4 questions" },
-          ]
-        },
-        {
-          section: "Module 2 - Machine Learning Essentials",
-          lectures: [
-            { title: "Supervised vs Unsupervised Learning", preview: true, duration: "7:00" },
-            { title: "Regression Analysis", preview: false, duration: "9:30" },
-            { title: "Classification Techniques", preview: false, duration: "10:00" },
-            { title: "Quiz: ML Types", preview: false, duration: "5 questions" },
-          ]
-        }
-      ]
-    },
-    {
-      id: 'ds-realworld',
-      title: "Data Science Real World Projects in Python",
-      author: "Shan Singh",
-      rating: 4.4,
-      reviews: 1413,
-      learners: 100000,
-      price: 619,
-      oldPrice: 3999,
-      img: "https://img-c.udemycdn.com/course/240x135/903744_8eb2_2.jpg",
-      whatYouLearn: ["Real world projects.", "Python for data science."],
-      curriculum: [
-        {
-          section: "Part 1 - Real World Data Science",
-          lectures: [
-            { title: "Course Introduction", preview: true, duration: "2:45" },
-            { title: "Project: Sales Forecasting", preview: false, duration: "11:00" },
-            { title: "Project: Stock Price Prediction", preview: false, duration: "13:20" },
-            { title: "Quiz: Forecasting", preview: false, duration: "3 questions" },
-          ]
-        },
-        {
-          section: "Part 2 - Python for Data Science",
-          lectures: [
-            { title: "Python Basics", preview: true, duration: "6:00" },
-            { title: "Data Visualization", preview: false, duration: "8:30" },
-            { title: "Quiz: Python", preview: false, duration: "4 questions" },
-          ]
-        }
-      ]
-    },
-    {
-      id: 'mlops-advanced',
-      title: "Beginner to Advanced MLOps on GCP-CI/CD, Kubernetes...",
-      author: "KRISHAI Technologies",
-      rating: 4.5,
-      reviews: 203,
-      learners: 20000,
-      price: 499,
-      oldPrice: 2129,
-      img: "https://img-c.udemycdn.com/course/240x135/3241526_5b3b_2.jpg",
-      whatYouLearn: ["MLOps from scratch.", "CI/CD pipelines."],
-      curriculum: [
-        {
-          section: "Unit 1 - MLOps Fundamentals",
-          lectures: [
-            { title: "Introduction to MLOps", preview: true, duration: "4:00" },
-            { title: "CI/CD Concepts", preview: false, duration: "7:30" },
-            { title: "Quiz: MLOps Basics", preview: false, duration: "5 questions" },
-          ]
-        },
-        {
-          section: "Unit 2 - Advanced MLOps",
-          lectures: [
-            { title: "Kubernetes for ML", preview: true, duration: "10:00" },
-            { title: "Monitoring ML Models", preview: false, duration: "8:45" },
-            { title: "Quiz: Advanced Topics", preview: false, duration: "6 questions" },
-          ]
-        }
-      ]
-    },
-  ];
+    // Transform backend courses to match frontend format
+  const recommendedCourses = courses.map(course => ({
+    id: course._id,
+    title: course.title,
+    author: course.instructor || 'Unknown Instructor',
+    rating: 4.5, // Default rating since backend doesn't store this
+    reviews: 100, // Default reviews
+    learners: 1000, // Default learners
+    price: course.price || 499,
+    oldPrice: (course.price || 499) * 2, // Mock old price
+    img: course.imageUrl || "https://img-c.udemycdn.com/course/480x270/567828_67d0.jpg",
+    bestseller: true,
+    category: course.category,
+    description: course.description
+  }));
   const viewedCourses = [
     {
       id: 'ml-projects',
@@ -326,6 +247,26 @@ function Dashboard() {
   function handleCourseClick(id) {
     navigate(`/course/${id}`);
   }
+  const handleLogout = () => {
+    storage.clearAuth();
+    navigate('/login');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading courses...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -348,7 +289,17 @@ function Dashboard() {
           <span className="text-2xl cursor-pointer">♡</span>
           <span className="text-2xl cursor-pointer">🛒</span>
           <span className="text-2xl cursor-pointer">🔔</span>
-          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-lg">{user.initials}</div>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-lg">
+              {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="text-sm text-gray-600 hover:text-purple-700"
+            >
+              Logout
+            </button>
+          </div>
         </nav>
       </header>
       {/* Category Menu */}
@@ -359,9 +310,11 @@ function Dashboard() {
       </nav>
       {/* Welcome Section */}
       <section className="flex items-center gap-6 px-8 py-8">
-        <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-3xl">{user.initials}</div>
+        <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-3xl">
+          {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+        </div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back, {user.name}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back, {user.username || 'User'}</h2>
           <a href="#" className="text-purple-700 font-medium underline text-base">Add occupation and interests</a>
         </div>
       </section>
@@ -409,20 +362,42 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  function handleLogin(e) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleLogin(e) {
     e.preventDefault();
-    // Admin login
-    if (email === "admin@gmail.com" && password === "admin@1234") {
-      navigate('/admin-dashboard');
-      return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.login(email, password);
+      
+      // Store auth data
+      storage.setToken(response.token);
+      storage.setUser(response.user);
+      
+      // Navigate based on user role
+      if (response.user.isAdmin) {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    // Simulate user login
-    navigate('/dashboard');
   }
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6">Login</h2>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
         <form className="flex flex-col gap-4" onSubmit={handleLogin}>
           <input
             type="email"
@@ -431,6 +406,7 @@ function Login() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
           <input
             type="password"
@@ -439,12 +415,14 @@ function Login() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={loading}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <div className="mt-4 text-center">
@@ -531,246 +509,221 @@ function Accordion({ sections }) {
 
 function CourseDetail() {
   const { id } = useParams();
-  // For demo, use the same static data as in Dashboard
-  const allCourses = [
-    {
-      id: 'python-bootcamp',
-      title: "100 Days of Code: The Complete Python Pro Bootcamp",
-      author: "Dr. Angela Yu",
-      rating: 4.7,
-      reviews: 378490,
-      learners: 1609177,
-      price: 499,
-      oldPrice: 3219,
-      img: "https://img-c.udemycdn.com/course/480x270/567828_67d0.jpg",
-      bestseller: true,
-      whatYouLearn: [
-        "You will master the Python programming language by building 100 unique projects over 100 days.",
-        "You will be able to program in Python professionally.",
-        "Create a portfolio of 100 Python projects to apply for developer jobs.",
-        "Be able to use Python for data science and machine learning.",
-        "Build GUIs and Desktop applications with Python.",
-        "You will learn automation, game, app and web development, data science and machine learning all using Python.",
-        "You will learn Selenium, Beautiful Soup, Request, Flask, Pandas, NumPy, Scikit Learn, Plotly, and Matplotlib.",
-        "Be able to build fully fledged websites and web apps with Python.",
-        "Build games like Blackjack, Pong and Snake using Python."
-      ],
-      curriculum: [
-        {
-          section: "Day 1 - Beginner - Working with Variables in Python to Manage Data",
-          lectures: [
-            { title: "What you're going to get from this course", preview: true, duration: "3:27" },
-            { title: "START HERE", preview: false, duration: "2:53" },
-            { title: "Downloadable Resources and Tips for Taking the Course", preview: true, duration: "4:22" },
-            { title: "Day 1 Goals: what we will make by the end of the day", preview: false, duration: "2:30" },
-            { title: "Download and Setup PyCharm for Learning", preview: false, duration: "4:22" },
-            { title: "Printing to the Console in Python", preview: false, duration: "11:25" },
-            { title: "Printing Practice", preview: false, duration: "1 question" },
-            { title: "String Manipulation and Code Intelligence", preview: false, duration: "9:13" },
-            { title: "Debugging Practice", preview: false, duration: "1 question" },
-            { title: "The Python Input Function", preview: false, duration: "12:35" },
-            { title: "Python Variables", preview: false, duration: "13:02" },
-            { title: "Variables", preview: false, duration: "1 question" },
-            { title: "Variable Naming", preview: false, duration: "4:23" },
-            { title: "Variable Naming Quiz", preview: false, duration: "3 questions" },
-            { title: "Day 1 Project: Band Name Generator", preview: false, duration: "5:32" },
-            { title: "Congratulations! Well done!", preview: false, duration: "0:52" },
-          ]
-        },
-        {
-          section: "Day 2 - Beginner - Understanding Data Types and How to Manipulate Strings",
-          lectures: [
-            { title: "Data Types Overview", preview: false, duration: "7:00" },
-            { title: "String Manipulation", preview: false, duration: "8:00" },
-          ]
+  const [course, setCourse] = useState(null);
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollMessage, setEnrollMessage] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
+
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        setLoading(true);
+        // Fetch course details and videos
+        const [coursesData, videosData] = await Promise.all([
+          api.getCourses(),
+          api.getVideosByCourse(id)
+        ]);
+        
+        const foundCourse = coursesData.find(c => c._id === id);
+        if (!foundCourse) {
+          setError('Course not found');
+          return;
         }
-      ]
-    },
-    {
-      id: 'ml-projects',
-      title: "40 Real World Data Science, Machine Learning Projects",
-      author: "Pianalytix",
-      rating: 4.3,
-      reviews: 322,
-      learners: 75000,
-      price: 509,
-      oldPrice: 2549,
-      img: "https://img-c.udemycdn.com/course/240x135/950390_270f_3.jpg",
-      whatYouLearn: ["Build real-world ML projects.", "Boost your portfolio."],
-      curriculum: [
-        {
-          section: "Section 1 - Introduction to Data Science Projects",
-          lectures: [
-            { title: "Course Overview", preview: true, duration: "2:10" },
-            { title: "Setting Up Your Environment", preview: false, duration: "5:00" },
-            { title: "Project 1: Predicting House Prices", preview: false, duration: "12:30" },
-            { title: "Project 2: Customer Segmentation", preview: false, duration: "10:00" },
-            { title: "Quiz: Data Science Basics", preview: false, duration: "5 questions" },
-          ]
-        },
-        {
-          section: "Section 2 - Machine Learning Projects",
-          lectures: [
-            { title: "Project 3: Image Classification", preview: true, duration: "15:00" },
-            { title: "Project 4: Sentiment Analysis", preview: false, duration: "13:45" },
-            { title: "Project 5: Fraud Detection", preview: false, duration: "14:20" },
-            { title: "Quiz: ML Concepts", preview: false, duration: "7 questions" },
-          ]
+        
+        setCourse(foundCourse);
+        setVideos(videosData);
+
+        // Check if user is enrolled (if logged in)
+        const user = storage.getUser();
+        const token = storage.getToken();
+        if (user && token) {
+          try {
+            const enrollmentStatus = await api.checkEnrollment(id, token);
+            setIsEnrolled(enrollmentStatus.isEnrolled);
+          } catch (err) {
+            console.error('Failed to check enrollment status:', err);
+          }
         }
-      ]
-    },
+      } catch (err) {
+        setError('Failed to load course data');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourseData();
+  }, [id]);
+
+  const handleEnroll = async () => {
+    const user = storage.getUser();
+    const token = storage.getToken();
+    
+    if (!user || !token) {
+      setEnrollMessage('Please login to enroll in this course');
+      return;
+    }
+
+    setEnrolling(true);
+    setEnrollMessage("");
+
+    try {
+      await api.enrollInCourse(id, token);
+      setShowPayment(true);
+      setEnrollMessage('Successfully enrolled! Please complete payment.');
+    } catch (err) {
+      setEnrollMessage(err.message || 'Failed to enroll in course');
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !course) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Course Not Found</h2>
+          <p className="text-gray-600">{error || 'The course you are looking for does not exist.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Transform videos to match curriculum format
+  const curriculum = videos.length > 0 ? [
     {
-      id: 'ds-mastery',
-      title: "Data Science Mastery: Journey into Machine Learning",
-      author: "Tech Career World",
-      rating: 4.3,
-      reviews: 245,
-      learners: 50000,
-      price: 479,
-      oldPrice: 799,
-      img: "https://img-c.udemycdn.com/course/240x135/1565838_e54e_16.jpg",
-      whatYouLearn: ["Master data science.", "Hands-on projects."],
-      curriculum: [
-        {
-          section: "Module 1 - Data Science Foundations",
-          lectures: [
-            { title: "Welcome to the Course", preview: true, duration: "3:00" },
-            { title: "What is Data Science?", preview: false, duration: "6:30" },
-            { title: "Python for Data Science", preview: false, duration: "8:00" },
-            { title: "Quiz: Data Science Terms", preview: false, duration: "4 questions" },
-          ]
-        },
-        {
-          section: "Module 2 - Machine Learning Essentials",
-          lectures: [
-            { title: "Supervised vs Unsupervised Learning", preview: true, duration: "7:00" },
-            { title: "Regression Analysis", preview: false, duration: "9:30" },
-            { title: "Classification Techniques", preview: false, duration: "10:00" },
-            { title: "Quiz: ML Types", preview: false, duration: "5 questions" },
-          ]
-        }
-      ]
-    },
+      section: "Course Videos",
+      lectures: videos.map(video => ({
+        title: video.title,
+        preview: true,
+        duration: video.duration || "10:00",
+        videoUrl: video.videoUrl
+      }))
+    }
+  ] : [
     {
-      id: 'ds-realworld',
-      title: "Data Science Real World Projects in Python",
-      author: "Shan Singh",
-      rating: 4.4,
-      reviews: 1413,
-      learners: 100000,
-      price: 619,
-      oldPrice: 3999,
-      img: "https://img-c.udemycdn.com/course/240x135/903744_8eb2_2.jpg",
-      whatYouLearn: ["Real world projects.", "Python for data science."],
-      curriculum: [
-        {
-          section: "Part 1 - Real World Data Science",
-          lectures: [
-            { title: "Course Introduction", preview: true, duration: "2:45" },
-            { title: "Project: Sales Forecasting", preview: false, duration: "11:00" },
-            { title: "Project: Stock Price Prediction", preview: false, duration: "13:20" },
-            { title: "Quiz: Forecasting", preview: false, duration: "3 questions" },
-          ]
-        },
-        {
-          section: "Part 2 - Python for Data Science",
-          lectures: [
-            { title: "Python Basics", preview: true, duration: "6:00" },
-            { title: "Data Visualization", preview: false, duration: "8:30" },
-            { title: "Quiz: Python", preview: false, duration: "4 questions" },
-          ]
-        }
+      section: "Course Content",
+      lectures: [
+        { title: "Introduction to the Course", preview: true, duration: "5:00" },
+        { title: "Getting Started", preview: false, duration: "10:00" }
       ]
-    },
-    {
-      id: 'mlops-advanced',
-      title: "Beginner to Advanced MLOps on GCP-CI/CD, Kubernetes...",
-      author: "KRISHAI Technologies",
-      rating: 4.5,
-      reviews: 203,
-      learners: 20000,
-      price: 499,
-      oldPrice: 2129,
-      img: "https://img-c.udemycdn.com/course/240x135/3241526_5b3b_2.jpg",
-      whatYouLearn: ["MLOps from scratch.", "CI/CD pipelines."],
-      curriculum: [
-        {
-          section: "Unit 1 - MLOps Fundamentals",
-          lectures: [
-            { title: "Introduction to MLOps", preview: true, duration: "4:00" },
-            { title: "CI/CD Concepts", preview: false, duration: "7:30" },
-            { title: "Quiz: MLOps Basics", preview: false, duration: "5 questions" },
-          ]
-        },
-        {
-          section: "Unit 2 - Advanced MLOps",
-          lectures: [
-            { title: "Kubernetes for ML", preview: true, duration: "10:00" },
-            { title: "Monitoring ML Models", preview: false, duration: "8:45" },
-            { title: "Quiz: Advanced Topics", preview: false, duration: "6 questions" },
-          ]
-        }
-      ]
-    },
+    }
   ];
-  const course = allCourses.find(c => c.id === id);
-  if (!course) return <div className="p-8">Course not found.</div>;
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex flex-col md:flex-row max-w-7xl mx-auto pt-8 px-4 gap-8">
         {/* Main content */}
         <div className="flex-1">
-          <div className="text-sm text-gray-500 mb-2">Development &gt; Programming Languages &gt; Python</div>
-          <h1 className="text-3xl font-bold mb-2 text-gray-900">{course.title}</h1>
-          <div className="text-lg text-gray-700 mb-4">Master Python by building 100 projects in 100 days. Learn data science, automation, build websites, games and apps!</div>
-          {course.bestseller && <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-semibold mr-2">Bestseller</span>}
-          <div className="mb-2 text-sm text-gray-700">Created by <span className="text-blue-700 font-medium">{course.author}</span></div>
-          <div className="mb-2 text-xs text-gray-500">Last updated 06/2025 &bull; English &bull; English, Arabic [Auto], 27 more</div>
-          <div className="flex items-center gap-6 mt-4 mb-6">
-            <div className="flex items-center gap-2">
-              <span className="bg-purple-700 text-white px-3 py-1 rounded text-sm font-semibold">Premium</span>
+                  <div className="text-sm text-gray-500 mb-2">Development &gt; {course.category || 'Programming'}</div>
+        <h1 className="text-3xl font-bold mb-2 text-gray-900">{course.title}</h1>
+        <div className="text-lg text-gray-700 mb-4">{course.description || 'Learn the fundamentals and advanced concepts of this course.'}</div>
+        <div className="mb-2 text-sm text-gray-700">Created by <span className="text-blue-700 font-medium">{course.instructor || 'Instructor'}</span></div>
+        <div className="mb-2 text-xs text-gray-500">Last updated {new Date(course.updatedAt || Date.now()).toLocaleDateString()} &bull; English</div>
+        <div className="flex items-center gap-6 mt-4 mb-6">
+          <div className="flex items-center gap-2">
+            <span className="bg-purple-700 text-white px-3 py-1 rounded text-sm font-semibold">Premium</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-2xl font-bold text-yellow-600">4.5</span>
+            <span className="text-xs text-gray-600">100 ratings</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-lg font-semibold text-gray-800">1,000</span>
+            <span className="text-xs text-gray-600">learners</span>
+          </div>
+        </div>
+        <div className="bg-white rounded shadow p-6 mt-6 mb-8">
+          <h2 className="text-xl font-bold mb-4">What you'll learn</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 mt-1">✓</span>
+              <span>Master the core concepts of {course.title}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold text-yellow-600">{course.rating}</span>
-              <span className="text-xs text-gray-600">{course.reviews.toLocaleString()} ratings</span>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 mt-1">✓</span>
+              <span>Build real-world projects and applications</span>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-semibold text-gray-800">{course.learners.toLocaleString()}</span>
-              <span className="text-xs text-gray-600">learners</span>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 mt-1">✓</span>
+              <span>Get hands-on experience with practical exercises</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 mt-1">✓</span>
+              <span>Learn from industry experts and best practices</span>
             </div>
           </div>
-          <div className="bg-white rounded shadow p-6 mt-6 mb-8">
-            <h2 className="text-xl font-bold mb-4">What you'll learn</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {course.whatYouLearn && course.whatYouLearn.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <span className="text-green-600 mt-1">✓</span>
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        </div>
           {/* Curriculum Accordion */}
-          {course.curriculum && (
-            <div className="bg-white rounded shadow p-0 mb-8">
-              <h2 className="text-lg font-bold mb-0 px-6 pt-6 pb-2">Course content</h2>
-              <div className="px-6 pb-6">
-                <Accordion sections={course.curriculum} />
-              </div>
+          <div className="bg-white rounded shadow p-0 mb-8">
+            <h2 className="text-lg font-bold mb-0 px-6 pt-6 pb-2">Course content</h2>
+            <div className="px-6 pb-6">
+              <Accordion sections={curriculum} />
             </div>
-          )}
+          </div>
         </div>
         {/* Sidebar */}
         <div className="w-full md:w-96 flex-shrink-0">
           <div className="bg-white rounded shadow p-4 mb-6">
-            <img src={course.img} alt={course.title} className="rounded w-full h-40 object-cover mb-4" />
+            <img src={course.imageUrl || "https://img-c.udemycdn.com/course/480x270/567828_67d0.jpg"} alt={course.title} className="rounded w-full h-40 object-cover mb-4" />
             <div className="flex items-center gap-2 mb-2">
               <span className="bg-purple-700 text-white px-2 py-1 rounded text-xs font-semibold">Premium</span>
             </div>
-            <div className="text-2xl font-bold mb-1">₹{course.price} <span className="text-gray-400 text-base line-through ml-2">₹{course.oldPrice}</span></div>
+            <div className="text-2xl font-bold mb-1">₹{course.price || 499} <span className="text-gray-400 text-base line-through ml-2">₹{(course.price || 499) * 2}</span></div>
             <div className="text-red-600 text-sm mb-2">1 hour left at this price!</div>
-            <button className="w-full bg-purple-700 text-white py-2 rounded font-semibold mb-2 hover:bg-purple-800 transition">Add to cart</button>
-            <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">Buy now</button>
+            
+            {enrollMessage && (
+              <div className={`mb-2 p-2 rounded text-sm ${enrollMessage.includes('Successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {enrollMessage}
+              </div>
+            )}
+            
+            {isEnrolled ? (
+              <div className="mb-2">
+                <button className="w-full bg-green-600 text-white py-2 rounded font-semibold mb-2" disabled>
+                  ✓ Enrolled
+                </button>
+                <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">
+                  Start Learning
+                </button>
+              </div>
+            ) : showPayment ? (
+              <div className="mb-2">
+                <button className="w-full bg-green-600 text-white py-2 rounded font-semibold mb-2">
+                  Pay Now - ₹{course.price || 499}
+                </button>
+                <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">
+                  Start Learning
+                </button>
+              </div>
+            ) : (
+              <div className="mb-2">
+                <button 
+                  onClick={handleEnroll}
+                  disabled={enrolling}
+                  className="w-full bg-purple-700 text-white py-2 rounded font-semibold mb-2 hover:bg-purple-800 transition disabled:opacity-50"
+                >
+                  {enrolling ? 'Enrolling...' : 'Enroll Now'}
+                </button>
+                <button className="w-full border border-purple-700 text-purple-700 py-2 rounded font-semibold hover:bg-purple-50 transition mb-2">
+                  Add to Wishlist
+                </button>
+              </div>
+            )}
             <div className="text-xs text-gray-500 mb-2">30-Day Money-Back Guarantee<br/>Full Lifetime Access</div>
             <div className="flex gap-2 mb-2">
               <button className="text-xs underline text-gray-700">Share</button>
@@ -793,44 +746,186 @@ function CourseDetail() {
 }
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('courses');
-  // Mock data
-  const [courses, setCourses] = useState([
-    { id: 1, title: 'Python Bootcamp', instructor: 'Dr. Angela Yu' },
-    { id: 2, title: 'ML Projects', instructor: 'Pianalytix' },
-  ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  
+  // Check if user is admin and fetch courses
+  useEffect(() => {
+    const user = storage.getUser();
+    if (!user || !user.isAdmin) {
+      navigate('/login');
+      return;
+    }
+
+    // Fetch courses for admin dashboard
+    const fetchCourses = async () => {
+      try {
+        const coursesData = await api.getCourses();
+        setCourses(coursesData);
+      } catch (err) {
+        console.error('Failed to fetch courses:', err);
+      }
+    };
+
+    fetchCourses();
+  }, [navigate]);
+
+  // State for courses and videos
+  const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([
     { id: 1, course: 'Python Bootcamp', title: 'Intro to Python', url: 'video1.mp4' },
   ]);
-  const [enrollments] = useState([
-    { id: 1, user: 'user1@gmail.com', course: 'Python Bootcamp', date: '2024-06-01' },
-    { id: 2, user: 'user2@gmail.com', course: 'ML Projects', date: '2024-06-02' },
-  ]);
-  const [sales] = useState([
-    { id: 1, course: 'Python Bootcamp', amount: 499, date: '2024-06-01' },
-    { id: 2, course: 'ML Projects', amount: 509, date: '2024-06-02' },
-  ]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [selectedCourseVideos, setSelectedCourseVideos] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [allVideos, setAllVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState("");
+  
   // Upload forms state
-  const [newCourse, setNewCourse] = useState({ title: '', instructor: '', image: '', curriculum: '' });
+  const [newCourse, setNewCourse] = useState({ 
+    title: '', 
+    instructor: '', 
+    imageUrl: '', 
+    category: '',
+    description: '',
+    price: ''
+  });
   const [newVideo, setNewVideo] = useState({ course: '', title: '', file: null });
+  
+  // Fetch enrollments and sales for admin
+  useEffect(() => {
+    const user = storage.getUser();
+    const token = storage.getToken();
+    if (!user || !user.isAdmin) return;
+
+    const fetchAdminData = async () => {
+      try {
+        console.log('🔍 Starting to fetch admin data...');
+        const [enrollmentsData, salesData, videosData] = await Promise.all([
+          api.fetchAllEnrollments(token),
+          api.fetchSalesReports(token),
+          api.fetchAllVideos(token),
+        ]);
+        console.log('📊 Enrollments:', enrollmentsData.length);
+        console.log('💰 Sales:', salesData.length);
+        console.log('📹 Videos:', videosData.length, 'videos fetched');
+        console.log('📹 Video details:', videosData);
+        
+        setEnrollments(enrollmentsData);
+        setSales(salesData);
+        setAllVideos(videosData);
+      } catch (err) {
+        console.error('❌ Failed to fetch admin data:', err);
+        console.error('❌ Error details:', err.message);
+      }
+    };
+    fetchAdminData();
+  }, []);
+  
   // Handlers
-  function handleCourseUpload(e) {
+  async function handleCourseUpload(e) {
     e.preventDefault();
-    setCourses([...courses, { id: Date.now(), ...newCourse }]);
-    setNewCourse({ title: '', instructor: '', image: '', curriculum: '' });
-    alert('Course uploaded!');
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = storage.getToken();
+      const courseData = {
+        ...newCourse,
+        price: parseFloat(newCourse.price) || 0
+      };
+      
+      await api.createCourse(courseData, token);
+      setSuccess('Course uploaded successfully!');
+      setNewCourse({ title: '', instructor: '', imageUrl: '', category: '', description: '', price: '' });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
-  function handleVideoUpload(e) {
+  
+  async function handleVideoUpload(e) {
     e.preventDefault();
-    setVideos([...videos, { id: Date.now(), ...newVideo }]);
-    setNewVideo({ course: '', title: '', file: null });
-    alert('Video uploaded!');
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = storage.getToken();
+      
+      // Find the selected video
+      const videoToAssign = allVideos.find(v => v._id === selectedVideo);
+      if (!videoToAssign) {
+        throw new Error('Selected video not found');
+      }
+
+      // Assign video to course using API
+      await api.assignVideoToCourse(selectedVideo, newVideo.course, token);
+
+      setSuccess('Video assigned to course successfully!');
+      setSelectedVideo("");
+      setNewVideo({ course: '', title: '', file: null });
+      
+      // Refresh the videos list
+      const updatedVideos = await api.fetchAllVideos(token);
+      setAllVideos(updatedVideos);
+      
+      // Refresh course videos if a course is selected
+      if (selectedCourseId) {
+        fetchVideosForCourse(selectedCourseId);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to assign video to course');
+    } finally {
+      setLoading(false);
+    }
   }
+
+  const handleLogout = () => {
+    storage.clearAuth();
+    navigate('/login');
+  };
+
+  // Fetch videos for selected course
+  const fetchVideosForCourse = async (courseId) => {
+    if (!courseId) {
+      setSelectedCourseVideos([]);
+      return;
+    }
+    try {
+      const videosData = await api.getVideosByCourse(courseId);
+      setSelectedCourseVideos(videosData);
+    } catch (err) {
+      setSelectedCourseVideos([]);
+      console.error('Failed to fetch videos for course:', err);
+    }
+  };
+
+  // Handle course selection change
+  const handleCourseSelectionChange = (courseId) => {
+    setSelectedCourseId(courseId);
+    fetchVideosForCourse(courseId);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-lg flex flex-col p-6 gap-4">
-        <h2 className="text-2xl font-bold text-purple-700 mb-6">Admin Panel</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-purple-700">Admin Panel</h2>
+          <button 
+            onClick={handleLogout}
+            className="text-sm text-gray-600 hover:text-purple-700"
+          >
+            Logout
+          </button>
+        </div>
         <button className={`text-left px-4 py-2 rounded font-semibold ${tab === 'courses' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100'}`} onClick={() => setTab('courses')}>Upload Courses</button>
         <button className={`text-left px-4 py-2 rounded font-semibold ${tab === 'videos' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100'}`} onClick={() => setTab('videos')}>Upload Videos</button>
         <button className={`text-left px-4 py-2 rounded font-semibold ${tab === 'enrollments' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100'}`} onClick={() => setTab('enrollments')}>View User Enrollments</button>
@@ -841,84 +936,232 @@ function AdminDashboard() {
         {tab === 'courses' && (
           <div>
             <h3 className="text-xl font-bold mb-4">Upload Courses</h3>
+            
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                {success}
+              </div>
+            )}
+            
             <form className="bg-white rounded shadow p-6 mb-8 max-w-lg" onSubmit={handleCourseUpload}>
               <div className="mb-4">
                 <label className="block font-semibold mb-1">Course Title</label>
-                <input type="text" className="w-full border rounded px-3 py-2" value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} required />
+                <input 
+                  type="text" 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.title} 
+                  onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} 
+                  required 
+                  disabled={loading}
+                />
               </div>
               <div className="mb-4">
                 <label className="block font-semibold mb-1">Instructor</label>
-                <input type="text" className="w-full border rounded px-3 py-2" value={newCourse.instructor} onChange={e => setNewCourse({ ...newCourse, instructor: e.target.value })} required />
+                <input 
+                  type="text" 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.instructor} 
+                  onChange={e => setNewCourse({ ...newCourse, instructor: e.target.value })} 
+                  required 
+                  disabled={loading}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-1">Category</label>
+                <input 
+                  type="text" 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.category} 
+                  onChange={e => setNewCourse({ ...newCourse, category: e.target.value })} 
+                  placeholder="e.g., Development, Business, Design"
+                  disabled={loading}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-1">Description</label>
+                <textarea 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.description} 
+                  onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} 
+                  rows="3"
+                  disabled={loading}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-1">Price (₹)</label>
+                <input 
+                  type="number" 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.price} 
+                  onChange={e => setNewCourse({ ...newCourse, price: e.target.value })} 
+                  placeholder="499"
+                  disabled={loading}
+                />
               </div>
               <div className="mb-4">
                 <label className="block font-semibold mb-1">Image URL</label>
-                <input type="text" className="w-full border rounded px-3 py-2" value={newCourse.image} onChange={e => setNewCourse({ ...newCourse, image: e.target.value })} />
+                <input 
+                  type="text" 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newCourse.imageUrl} 
+                  onChange={e => setNewCourse({ ...newCourse, imageUrl: e.target.value })} 
+                  placeholder="https://example.com/image.jpg"
+                  disabled={loading}
+                />
               </div>
-              <div className="mb-4">
-                <label className="block font-semibold mb-1">Curriculum (comma separated)</label>
-                <input type="text" className="w-full border rounded px-3 py-2" value={newCourse.curriculum} onChange={e => setNewCourse({ ...newCourse, curriculum: e.target.value })} />
-              </div>
-              <button type="submit" className="bg-purple-700 text-white px-6 py-2 rounded font-semibold hover:bg-purple-800 transition">Upload Course</button>
+              <button 
+                type="submit" 
+                className="bg-purple-700 text-white px-6 py-2 rounded font-semibold hover:bg-purple-800 transition disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? 'Uploading...' : 'Upload Course'}
+              </button>
             </form>
-            <h4 className="text-lg font-semibold mb-2">Existing Courses</h4>
-            <table className="w-full bg-white rounded shadow mb-8">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 text-left">Title</th>
-                  <th className="p-2 text-left">Instructor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courses.map(c => (
-                  <tr key={c.id} className="border-b last:border-b-0">
-                    <td className="p-2">{c.title}</td>
-                    <td className="p-2">{c.instructor}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
         {tab === 'videos' && (
           <div>
             <h3 className="text-xl font-bold mb-4">Upload Videos</h3>
+            
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                {success}
+              </div>
+            )}
+            
             <form className="bg-white rounded shadow p-6 mb-8 max-w-lg" onSubmit={handleVideoUpload}>
               <div className="mb-4">
                 <label className="block font-semibold mb-1">Course</label>
-                <select className="w-full border rounded px-3 py-2" value={newVideo.course} onChange={e => setNewVideo({ ...newVideo, course: e.target.value })} required>
+                <select 
+                  className="w-full border rounded px-3 py-2" 
+                  value={newVideo.course} 
+                  onChange={e => {
+                    setNewVideo({ ...newVideo, course: e.target.value });
+                    handleCourseSelectionChange(e.target.value);
+                  }} 
+                  required
+                  disabled={loading}
+                >
                   <option value="">Select Course</option>
-                  {courses.map(c => <option key={c.id} value={c.title}>{c.title}</option>)}
+                  {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
                 </select>
               </div>
               <div className="mb-4">
-                <label className="block font-semibold mb-1">Video Title</label>
-                <input type="text" className="w-full border rounded px-3 py-2" value={newVideo.title} onChange={e => setNewVideo({ ...newVideo, title: e.target.value })} required />
+                <label className="block font-semibold mb-1">Select Video from Database</label>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    const token = storage.getToken();
+                    try {
+                      console.log('🔍 Testing video fetch...');
+                      console.log('🌐 API URL:', `${API_BASE_URL}/videos/all`);
+                      console.log('🔑 Token:', token ? 'Present' : 'Missing');
+                      
+                      const videos = await api.fetchAllVideos(token);
+                      console.log('📹 Test result:', videos);
+                      setAllVideos(videos);
+                    } catch (err) {
+                      console.error('❌ Test failed:', err);
+                      console.error('❌ Error details:', err.message);
+                    }
+                  }}
+                  className="mb-2 bg-blue-500 text-white px-4 py-2 rounded text-sm"
+                >
+                  Test Fetch Videos
+                </button>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      console.log('🔍 Testing server connection...');
+                      const response = await fetch('http://192.168.1.202:5000/');
+                      const text = await response.text();
+                      console.log('✅ Server response:', text);
+                    } catch (err) {
+                      console.error('❌ Server test failed:', err);
+                    }
+                  }}
+                  className="mb-2 bg-green-500 text-white px-4 py-2 rounded text-sm ml-2"
+                >
+                  Test Server
+                </button>
+                <select 
+                  className="w-full border rounded px-3 py-2" 
+                  value={selectedVideo} 
+                  onChange={e => setSelectedVideo(e.target.value)} 
+                  required
+                  disabled={loading}
+                >
+                  <option value="">Choose a video to upload ({allVideos.length} videos available)</option>
+                  {allVideos.length > 0 ? (
+                    allVideos.map(video => (
+                      <option key={video._id} value={video._id}>
+                        {video.title} {video.courseId ? `(Currently in: ${video.courseId.title})` : '(Not assigned)'}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No videos available in database</option>
+                  )}
+                </select>
+                {allVideos.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    No videos found. Please run the video upload script first: npm run upload-videos
+                  </p>
+                )}
               </div>
-              <div className="mb-4">
-                <label className="block font-semibold mb-1">Video File</label>
-                <input type="file" className="w-full" onChange={e => setNewVideo({ ...newVideo, file: e.target.files[0] })} required />
-              </div>
-              <button type="submit" className="bg-purple-700 text-white px-6 py-2 rounded font-semibold hover:bg-purple-800 transition">Upload Video</button>
+              <button 
+                type="submit" 
+                className="bg-purple-700 text-white px-6 py-2 rounded font-semibold hover:bg-purple-800 transition disabled:opacity-50"
+                disabled={loading || !selectedVideo || !newVideo.course}
+              >
+                {loading ? 'Uploading...' : 'Assign Video to Course'}
+              </button>
             </form>
-            <h4 className="text-lg font-semibold mb-2">Uploaded Videos</h4>
-            <table className="w-full bg-white rounded shadow mb-8">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 text-left">Course</th>
-                  <th className="p-2 text-left">Title</th>
-                  <th className="p-2 text-left">File</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videos.map(v => (
-                  <tr key={v.id} className="border-b last:border-b-0">
-                    <td className="p-2">{v.course}</td>
-                    <td className="p-2">{v.title}</td>
-                    <td className="p-2">{v.file ? v.file.name : v.url}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            
+            {/* Course Selector for Viewing Videos */}
+            <div className="bg-white rounded shadow p-6 mb-8">
+              <h4 className="text-lg font-semibold mb-4">View Videos by Course</h4>
+              
+              {selectedCourseId && (
+                <div>
+                  <h5 className="font-semibold mb-3">Videos for {courses.find(c => c._id === selectedCourseId)?.title}</h5>
+                  {selectedCourseVideos.length > 0 ? (
+                    <table className="w-full bg-gray-50 rounded">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="p-2 text-left">Title</th>
+                          <th className="p-2 text-left">Duration</th>
+                          <th className="p-2 text-left">File</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedCourseVideos.map(video => (
+                          <tr key={video._id} className="border-b last:border-b-0">
+                            <td className="p-2">{video.title}</td>
+                            <td className="p-2">{video.duration || '10:00'}</td>
+                            <td className="p-2">{video.videoUrl}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-gray-500">No videos uploaded for this course yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {tab === 'enrollments' && (
@@ -934,10 +1177,10 @@ function AdminDashboard() {
               </thead>
               <tbody>
                 {enrollments.map(e => (
-                  <tr key={e.id} className="border-b last:border-b-0">
-                    <td className="p-2">{e.user}</td>
-                    <td className="p-2">{e.course}</td>
-                    <td className="p-2">{e.date}</td>
+                  <tr key={e._id} className="border-b last:border-b-0">
+                    <td className="p-2">{e.userId?.email || e.userId?.username || 'Unknown'}</td>
+                    <td className="p-2">{e.courseId?.title || 'Unknown'}</td>
+                    <td className="p-2">{new Date(e.enrolledAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -956,11 +1199,11 @@ function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {sales.map(s => (
-                  <tr key={s.id} className="border-b last:border-b-0">
+                {sales.map((s, idx) => (
+                  <tr key={idx} className="border-b last:border-b-0">
                     <td className="p-2">{s.course}</td>
                     <td className="p-2">₹{s.amount}</td>
-                    <td className="p-2">{s.date}</td>
+                    <td className="p-2">{new Date(s.date).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
